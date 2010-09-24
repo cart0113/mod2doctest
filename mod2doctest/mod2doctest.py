@@ -55,8 +55,6 @@ def convert(python_cmd,
             fn_process_input=None,
             fn_process_docstr=None,
             fn_title_docstr=None,
-            cleanup_docstr=True,
-            remove_name_equals_main=True,
             do_exit=True,
             ):
     """
@@ -133,13 +131,6 @@ def convert(python_cmd,
                             string that will be used for the title.
     :type fn_title_docstr:  callable
 
-    :param remove_name_equals_main: If True, all text under ``if __name__ ==
-                                    '__main__':`` block are removed.  Note, 
-                                    only module level (most left aligned) 
-                                    if statements are removed (e.g. if blocks
-                                    nested in code not removed).  
-    :type remove_name_equals_main: True or False
-
     :param do_exit: If True, the program exists after :func:`convert` is called.
                     Normally, this is what you want because your code has 
                     already been executed once in the interpreter.  
@@ -166,19 +157,20 @@ def convert(python_cmd,
         raise SystemError, ("'src' %s must be a valid module or file path, "
                             "or string ...") % obj
 
-    # Remove first docstring ...
+    # First, remove the docstring.  Keep the input variable around, it's 
+    # needed later on (the raw input with just the docstring removed).
     input = _input_remove_docstring(input)
     
     pinput = _input_fix_whitespace(input)
-
+    
     pinput = _input_escape_shell_prompt(pinput)
-
-    if remove_name_equals_main:
-        pinput = _input_remove_name_eq_main(pinput)
+    pinput = _input_remove_name_eq_main(pinput)
 
     # Remove extra whitespace at end.
     # You need to do this AFTER the removing of ``if __name__ == '__main__'``
-    pinput = '%s\n' % pinput.strip()
+    pinput = pinput.strip()
+    pinput = pinput.replace('\r', '')
+    pinput = pinput.replace('\t', '    ')
 
     shell = subprocess.Popen(args=[python_cmd, "-i"],
                              shell=False,
@@ -187,11 +179,7 @@ def convert(python_cmd,
                              stderr=subprocess.STDOUT,
                              )
 
-    output = shell.communicate(pinput)[0]
-
-    docstr = _match_input_to_output(pinput, output)
-
-    _print_to_std(docstr)
+    docstr = _communicate(pinput, shell)
 
     if ellipse_memid:
         docstr = _docstr_ellipse_mem_id(docstr)
@@ -219,10 +207,9 @@ def convert(python_cmd,
         doctitle = ''
         docstr = '\n'.join(docstr.split('\n')[2:]).lstrip()
 
-    docstr = '"""%s%s\n"""' % (doctitle, docstr.strip())
+    docstr = '"""\n%s%s\n\n"""' % (doctitle, docstr.strip())
     
-    if cleanup_docstr:
-        docstr = _docstr_cleanup_docstr(docstr)
+    docstr = _docstr_cleanup_docstr(docstr)
 
     if target:
 
@@ -301,31 +288,24 @@ def _input_fix_whitespace(input):
     lines = []
     input = input.replace('\r', '')
     input = input.replace('\t', ' '*4)
-    ws = []
-    found_ws = False
+    hold = []
     current_indent = 0
     stackable_tokens = set(['else', 'elif', 'except', 'finally'])
     for line in input.split('\n'):
-        s = line.lstrip()
-        if (s and not s.startswith('#') and found_ws is False and 
-            (len(line)-len(s) < current_indent) and 
-            line.split(' ', 1)[0].replace(':', '') not in stackable_tokens):
-            lines.append('')
-        if not s:
-            found_ws = True
-            ws.append(s)
-        elif s.startswith('#'):
-            found_ws = False
-            ws.append(line)
+        left_stripped = line.lstrip()
+        if not left_stripped: # means empty line
+            hold.append(left_stripped)
+        elif left_stripped.startswith('#'): 
+            hold.append(left_stripped)
         else:
-            found_ws = False
-            current_indent = len(line) - len(s)    
-            if ws:
-                lines.extend([w if w else ' '*current_indent for w in ws])
-                ws = []
+            if left_stripped.split()[0].split(':')[0] not in stackable_tokens:
+                current_indent = len(line) - len(left_stripped)    
+            hold = ['%s%s' % (' '*current_indent, h,) for h in hold]
+            lines.extend(hold)
+            hold = []
             lines.append(line.rstrip())
     return '\n'.join(lines)
-
+    
 _RE_NEM = re.compile(r"""^if\s+__name__\s*==\s*['"]+__main__['"]+\s*:""", 
                      flags=re.IGNORECASE)
 def _input_remove_name_eq_main(input):
@@ -340,14 +320,72 @@ def _input_remove_name_eq_main(input):
             lines.append(line)
     return '\n'.join(lines)
 
-def _match_input_to_output(input, output):
-    input = input.replace('\r', '')
-    output = output.replace('\r', '')
-    docstr = ''
-    input = input.split('\n') + ['']
-    for line in output.split('\n'):
-        docstr = _match_input_to_output_process(docstr, input, line)
-    return docstr
+def _communicate(pinput, shell):
+    
+    shell.stdin.write('%s\n\nraise SystemExit\n\n' % pinput)
+    shell.stdin.flush()
+    
+    pinputlines = pinput.split('\n')
+    docstrlines = []
+
+    intraceback = False
+    startheader = True
+
+    while True:
+    
+        outputline = shell.stdout.readline().replace('\r', '')
+        outputline = outputline.replace('\n', '')
+        outputline = outputline.replace('\t', '    ')
+
+        if not outputline:
+            break
+        else:
+        
+            for line in _match_input_to_output(pinputlines, outputline):
+
+                docstrlines.append(line)
+            
+                if line.startswith('>>> #>') or line.startswith('... #>'):
+                    if startheader:
+                        print '\n'
+                    line = line[6:]
+                    startheader = False
+                elif line.startswith('>>> ') or line.startswith('...'):
+                    startheader = True
+                    continue
+                
+                if line.startswith('Traceback') or line.startswith('Exception'):
+                    intraceback = True
+                elif intraceback and not line.startswith(' '):
+                    intraceback = None
+                
+                if intraceback is False:
+                    print line
+                else:
+                    print >> sys.stderr, line
+                    time.sleep(0.010)
+                    
+                if intraceback is None:
+                    intraceback = False
+                    
+    return '\n'.join(docstrlines)
+    
+def _match_input_to_output(inputlines, outputline):
+    
+    has_input = True
+
+    while has_input:
+        if outputline.startswith('>>> ') or outputline.startswith('... '):
+            if inputlines:
+                yield "%s%s" % (outputline[0:4], inputlines.pop(0),)
+                outputline = outputline[4:]
+            else:
+                yield ""
+                has_input = False
+        else:
+            yield outputline
+            has_input = False
+
 
 _RE_SPLIT_TRACEBACK = re.compile(r"""
                                   (Traceback.*
@@ -355,46 +393,6 @@ _RE_SPLIT_TRACEBACK = re.compile(r"""
                                   \n\w+.*)
                                   """, flags=re.MULTILINE | re.VERBOSE)
 
-def _print_to_std(docstr):
-    
-    lines = []
-    in_header = False
-    for line in docstr.split('\n'):
-        if line.startswith('>>> #>') or line.startswith('... #>'):
-            if not in_header:
-                lines.extend(['', ''])
-                in_header = True
-            lines.append(line[6:])
-        elif not line.startswith('>>> ') and not line.startswith('... '):
-            in_header = False
-            lines.append(line)
-    
-    output = '\n'.join(lines)
-
-    for i, part in enumerate(_RE_SPLIT_TRACEBACK.split(output)):
-        if i % 2 == 0:
-            sys.stderr.flush()
-            time.sleep(0.1)
-            print part
-        else:
-            sys.stdout.flush()
-            time.sleep(0.1)
-            print >> sys.stderr, part
-
-def _match_input_to_output_process(docstr, input_lines, output_line):
-    started = False
-    while True:
-        if output_line.startswith('>>> '):
-            docstr += '>>> ' + input_lines.pop(0) + '\n'
-            started = True
-            output_line = output_line[4:]
-        elif started and output_line.startswith('... '):
-            docstr += '... ' + input_lines.pop(0) + '\n'
-            output_line = output_line[4:]
-        elif started is True and len(output_line) == 0:
-            return docstr
-        else:
-            return docstr + output_line + '\n'
 
 _RE_OUTPUT_FIXUP = re.compile(r'^[ \t]*$', flags=re.MULTILINE)
 def _docstr_fix_blanklines(docstr):
@@ -487,18 +485,20 @@ def _process_docstr_markers(docstr):
     return '\n'.join(lines)
 
 def _docstr_cleanup_docstr(docstr):
+
     lines = []
-    in_code = False
+
+    extra_marker = None
     for line in docstr.split('\n'):
         test = line.strip()
-        if (test.startswith('>>>') or test.startswith('...')) and len(test) > 3:
-            in_code = True
-        if in_code is False and (test == '>>>' or test == '...'):
-            continue
-        else:
-            lines.append(line)
         if test == '>>>' or test == '...':
-            in_code = False
+            extra_marker = line
+        else:
+            if extra_marker and test:
+                lines.append(extra_marker)
+            extra_marker = None
+            lines.append(line)
+            
     return '\n'.join(lines)
 
 def _run_doctest(target, doctest_flags):

@@ -12,7 +12,7 @@
 # serve to show the default.
 
 import sys, os
-sys.path.append(r'C:\eclipse\workspace\HG_MOD2DOCTEST')
+sys.path.append(r'C:\eclipse\workspace\GIT_MOD2DOCTEST')
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the

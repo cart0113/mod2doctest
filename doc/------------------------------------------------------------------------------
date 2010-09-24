@@ -1,0 +1,28 @@
+Running Sphinx v1.0.4
+loading pickled environment... not yet created
+No builder selected, using default: html
+loading intersphinx inventory from http://docs.python.org/objects.inv...
+building [html]: all source files
+updating environment: 3 added, 0 changed, 0 removed
+reading sources... [ 33%] basicexample
+[-4, 1, 10, 50]
+'(lp0\nI-4\naI1\naI10\naI50\na.'
+<class 'tests.basicexample.Foo'>
+<tests.basicexample.Foo object at 0x0320E3F0>
+<module 'pickle' from 'C:\Python26\lib\pickle.pyc'>
+reading sources... [ 66%] extendedexample
+reading sources... [100%] index
+
+looking for now-outdated files... none found
+pickling environment... done
+checking consistency... done
+preparing documents... done
+writing output... [ 33%] basicexample
+writing output... [ 66%] extendedexample
+writing output... [100%] index
+
+writing additional files... genindex py-modindex search
+copying static files... done
+dumping search index... done
+dumping object inventory... done
+build succeeded, 5 warnings.

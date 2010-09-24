@@ -7,96 +7,109 @@
 mod2doctest
 ***********
 
-Why mod2doctest?
-================
+Important Updates
+=================
 
+  *  9/23/2010 -- Version 0.2.0 out.  Drastically changes how |mod2doctest| operates and 
+     fixes many bugs (mainly due to whitespace errors).  Much better, more
+     stable release. 
+
+What is mod2doctest?
+====================
 
 With |mod2doctest| you can set up a test the "quick and dirty" way -- just by
 making a module that tests your code, running it, and then inspecting the 
 output.  Then, you can use |mod2doctest| to take a snapshot of the output and 
 convert it to a permanent test fixture -- a :mod:`doctest` testable docstring.  
 This docstring is now something that you can add to a test suite or can be 
-picked up by module like :mod:`nose`.
+picked up by module like :mod:`nose`.  In a nut shell, |mod2doctest| saves you 
+from copying and pasting output into "doctest-able" docstrings. 
 
-In a nut shell, |mod2doctest| saves you from copying and pasting output 
-into "doctest-able" docstrings.  So, if you've ever been bothered by having 
-to cut and paste output into your docstring (or unit test assert function, 
-too) then maybe give |mod2doctest| a try.
-
-Also, by using :class:`m2d_print` utility functions and following a few 
-conventions, you can easily make pretty printed docstrings that looks better
-than a raw interpreter shell dump.  Also, these strings play nicely with 
-Sphinx so you can easily have a web front end for your test suite. Check out 
-the Tests_ to see example of simple python modules that are converted to test 
-documentation. 
+But it also makes it easy to format the output docstring.  By using special
+``#>`` and ``#|`` comments, it easy to put sphinx rest style documentation 
+right in your python module.  The goal is to turn your "quick and dirty get
+up and running script" into 1. a permanent doctest test fixture and 2. sphinx
+compatiable documentation of your program. 
 
 
+Quick Example
+================================================================================
 
-But what could be easier than just writing a docstring?
--------------------------------------------------------
+A module that looks like this::
 
-|doctest| is great and really makes writing unit/functional tests easier. 
-However, there are still some manual steps. Also, if you choose to write 
-doctests in the docstring directly, you'll lose IDE features like code 
-completion, debugging, etc. If you have a bigger test, 
-this can lead to some pain if you need to go back and changes and need to 
-re-updated the entire docstring each time.  
+	if __name__ == '__main__':
+	
+	    # All __name__ == '__main__' blocks are removed, serving as mod2doctest 
+	    # comments
+	    
+	    import mod2doctest
+	    mod2doctest.convert('python', src=True, target='_doctest', run_doctest=False, 
+	                        add_testmod=False, add_autogen=False)    
+	
+	#>Welcome to mod2doctest
+	#>++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	#|
+	#|Just enter in some python
+	#| 
+	#|.. warning::  
+	#|   make sure to examine your resulting docstr to make sure output is as 
+	#|   expected!
+	
+	#|The basics: 
+	print 'Hello World!'
+	
+	#>Extended Example
+	#>++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	#|A little more:
+	somelist = [100, 2, -20, 340, 0, 0, 10, 10, 88, -3, 100, 2, -99, -1]
+	sorted(set(somelist))
 
-|mod2doctest| also formats the output for nice display and  
-provides many conveniences like: 
+Will print to stdout (when run) like this::
+	
+	Python 2.6.2 (r262:71605, Apr 14 2009, 22:40:02) [MSC v.1500 32 bit (Intel)] on win32
+	Type "help", "copyright", "credits" or "license" for more information.
+	
+	
+	Welcome to mod2doctest
+	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	Hello World!
+	
+	
+	Extended Example
+	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	[-99, -20, -3, -1, 0, 2, 10, 88, 100, 340]
 
-*  Adding all '>>>' and '...' if you write doctest docstrings directly. 
+Also, a docstring like this is created::
 
-*  Or if you create tests in the interpreter (or copy them from a module to 
-   the interpreter) you still need to copy and paste output from the 
-   interpreter (or from the doctest 'expected' output).
-
-*  And then, you need to format the output, add ellipses for certain fields, 
-   etc. 
-   
-*  Adding whitespace, etc. so the test output is more readable. 
-
-*  Allowing you to develop your test in a normal python module where you
-   can take advantage of many IDE features like code completion, debugging, 
-   etc. 
-
-*  Processing comments so they don't show up in the '>>>' output -- they
-   just show up as text in the docstr, which is what you want. 
-
-*  Removes and ``if __name__ == '__main__'`` blocks from the input.  
-   This allows you to create code that does not show up in the docstring
-   (like importing |mod2doctest| itself. 
-
-*  Adding :mod:`doctest` ellipses to common things like file paths, memory
-   ids, and tracebacks. 
-
-*  Allows you to pass your own functions to pre/post process data (using
-   regular expressions or any way you like). 
-
-*  Providing the :class:`m2d_print` functions which both pretty prints to 
-   stdout and the docstr in a way that just 'makes sense'. 
-
-*  Breaking the '>>>' stream on two newlines.  This allows you to easily
-   create whitespace 'breaks' in the output docstring module (something 
-   not possible when you copy and paste from shell). 
-
-*  Right strips lines to avoid extra '...' in the docstrings. 
-
-*  If you want, auto add ``if __name__ == '__main__':`` :mod:`doctest` blocks 
-   to your output docstring. 
-
-*  Automatically run :mod:`doctest` for you to see if there were any problems. 
-
-*  Fixes several other common white space problems. 
-  
-Also, a goal is to make nice looking :mod:`sphinx` compatibale docstrings that 
-can be included in your documentation.  See the `Tests`_ section for examples.
-
-Basically, after you get used to how |mod2doctest| works, you can write a 
-module with the final output docstring in mind.  This way, all you need to do 
-is run your module but you get sphinx ready docstrings with no extra effort. 
+	r"""
+	Welcome to mod2doctest
+	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	
+	Just enter in some python
+	 
+	.. warning::  
+	  make sure to examine your resulting docstr to make sure output is as 
+	  expected!
+	
+	The basics: 
+	 
+	>>> print 'Hello World!'
+	Hello World!
+	
+	Extended Example
+	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	A little more:
+	 
+	>>> somelist = [100, 2, -20, 340, 0, 0, 10, 10, 88, -3, 100, 2, -99, -1]
+	>>> sorted(set(somelist))
+	[-99, -20, -3, -1, 0, 2, 10, 88, 100, 340]
+	
+	"""
 
 
+Which, when included in sphinx documentation looks like this:
+
+.. automodule:: tests.intro_doctest
 
 
 Installation for Python 2.4 through 2.6
@@ -105,137 +118,16 @@ Installation for Python 2.4 through 2.6
 Try::
 
 	easy_install mod2doctest
+	
+	or 
+	
+	pip mod2doctest
 
 If that does not work go to http://pypi.python.org/pypi/mod2doctest/.
 
 There you can grab the windows installer, egg, or source directly. 
 
-Also, go to http://bitbucket.org/cart0113/mod2doctest/ to grab the latest repo.
-
-
-
-Basic Example
-=============
-
-Let's say we have a script ``myscript.py`` like the one below.  Please
-first note:
-
-*  The ``if __name__ == '__main__'`` clause which actually calls 
-   |mod2doctest|.  It needs to be first because, when you run the module, 
-   there is an error in it (which will get captured in the docstr).
-   
-*  The ``if __name__ == '__main__'`` gets stripped out by |mod2doctest|. 
-
-with that said, here's the module contents::
-
-	if __name__ == '__main__':
-	    import mod2doctest
-	    mod2doctest.convert(src=True, target=True, run_doctest=True)
-	
-	
-	#===============================================================================
-	# Test Setup
-	#===============================================================================
-	import pickle
-	import os
-	
-	
-	#===============================================================================
-	# Make A List
-	#===============================================================================
-	alist = [1, -4, 50] + list(set([10, 10, 10]))
-	alist.sort()
-	print alist
-	
-	
-	#===============================================================================
-	# Pickle The List
-	#===============================================================================
-	print `pickle.dumps(alist)`
-	
-	
-	#===============================================================================
-	# Add some ellipses
-	#===============================================================================
-	class Foo(object):
-	    pass
-	
-	print Foo()
-	print pickle
-	os.getcwd()
-	
-	
-	#===============================================================================
-	# This should cause an error
-	#===============================================================================
-	print pickle.dumps(os)
-
-	
-We now end up with this docstring that is prepended to the ``myscript.py``::
-
-	r"""
-	================================================================================
-	Auto generated by mod2doctest on Sat Nov 28 13:54:55 2009
-	================================================================================
-	
-	Python 2.4.4 (#71, Oct 18 2006, 08:34:43) [MSC v.1310 32 bit (Intel)] on win32
-	Type "help", "copyright", "credits" or "license" for more information.
-	
-	
-	===============================================================================
-	Test Setup
-	===============================================================================
-	>>> import pickle
-	>>> import os
-	
-	
-	===============================================================================
-	Make A List
-	===============================================================================
-	>>> alist = [1, -4, 50] + list(set([10, 10, 10]))
-	>>> alist.sort()
-	>>> print alist
-	[-4, 1, 10, 50]
-	
-	
-	===============================================================================
-	Pickle The List
-	===============================================================================
-	>>> print `pickle.dumps(alist)`
-	'(lp0\nI-4\naI1\naI10\naI50\na.'
-	
-	
-	===============================================================================
-	Add some ellipses
-	===============================================================================
-	>>> class Foo(object):
-	...     pass
-	...
-	>>> print Foo()
-	<...Foo object at 0x...>
-	>>> print pickle
-	<module 'pickle' from '...pickle.pyc'>
-	>>> os.getcwd()
-	'...tests'
-	
-	
-	===============================================================================
-	This should cause an error
-	===============================================================================
-	>>> print pickle.dumps(os)
-	Traceback (most recent call last):
-	...
-	TypeError: can't pickle module objects
-	
-	"""
-
-Note, we used ``src=True`` and ``target=True`` in our call to :func:`convert`. 
-This told |mod2doctest| to use the current module as the source and to prepend
-the docstring to the current module.  ``target`` can also be a file path which
-will then contain the docstring output. 
-
-	
-
+Also, go to http://github.com/cart0113/mod2doctest to grab the latest repo.
 
 
 A Word Of Warning
@@ -295,11 +187,9 @@ API
 
 .. automodule:: mod2doctest
 .. autofunction:: mod2doctest.convert
-.. autoclass:: mod2doctest.FLAGS
-.. autoclass:: mod2doctest.m2d_print
 
 
-Tests
+Example
 =====
 
 One great thing about |doctest| is that your tests can easily be converted
@@ -318,7 +208,7 @@ The following tests below were generated using these techniques.
 
    In this case, to best understand what's going on, look in mod2doctest.tests 
    package.  And, if you want, go to 
-   http://bitbucket.org/cart0113/mod2doctest/, clone the repo, and
+   http://github.com/cart0113/mod2doctest, clone the repo, and
    check out how those modules and how they are used in the Sphinx 
    documentation. 
 
@@ -326,15 +216,21 @@ The following tests below were generated using these techniques.
    :maxdepth: 1
 	
    basicexample
+   extendedexample
 
 
 How Does |mod2doctest| Work?
 ============================
 
 Basically, |mod2doctest| takes your input, pipes it to an interpreter using the
-:mod:`subprocess` module and then uses a bunch of :mod:`re` regular expressions
-to massage the output.  It is, really, just a chain of regular expressions. 
+:mod:`subprocess` module.  Then, a bunch of text processing is done to line
+up the original module text with the output from subprocess (this includes
+lining up the '>>> ' and '...' which is tricker than it sounds).  
 
+This is why the output from mod2doctest is much more nicely formatted than if 
+you were to just paste a module into the intrepreter yourself (also, that often 
+does not work due to allowed whitespace differences between modules and the 
+interactive interpreter). 
 
 Indices and Tables
 ==================
