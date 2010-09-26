@@ -1,214 +1,243 @@
-basicexample.py: A quick example. 
-*********************************
+extendedexample.py: An example that has timing / threading 
+**********************************************************
 
-The following input module::
+Input Module
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+		
+This is the input module::
 
 	if __name__ == '__main__':
 	
 	    # Anything inside a __name__ == '__main__' block is removed
 	    
 	    import mod2doctest
-	    mod2doctest.convert('python', src=True, target='_doctest', run_doctest=False)    
-	
-	#>Notes on documentation ..
-	#>==============================================================================
-	#|
-	#|mod2doctest allows you to create comments that show up in the docstr 
-	#|so you can easily add sphinx rest comments like this:
-	#| 
-	#| ..note ::
-	#|    `#|` prints only to docstr
-	#|    `#>` prints to docstr and stdout
-	#|
-	#|For example: 
-	#|
-	#|This is just in the docs
-	#>This prints to the docs and stdout. 
-	#|
+	    mod2doctest.convert('python', src=True, target='_doctest', 
+	                        run_doctest=False)    
 	
 	#>Test Setup
-	#>==============================================================================
-	import pickle
+	#>------------------------------------------------------------------------------
 	import os
+	import shutil
+	import time
+	import threading
 	
-	#|Btw, you can use 'if __name__' blocks anywhere you want, it will not show
-	#|up in the final docstring.
-	if __name__ == '__main__':
-	    import log
-	
-	#>Make A List
-	#>==============================================================================
-	alist = [1, -4, 50] + list(set([10, 10, 10]))
-	alist.sort()
-	print alist
-	
-	#>Pickle The List
-	#>==============================================================================
-	#|This will print the repr of the pickle string.  If this algorithm every
-	#|changes -- even if one character is different -- this test will 'break'. 
-	print repr(pickle.dumps(alist))
-	
-	#>Ellipses #1: mod2doctest can (if you want) add ellipses to memory IDs
-	#>==============================================================================
-	class Foo(object):
-	    pass
-	
-	print Foo
-	print Foo()
-	
-	#>Ellipses #2: Also, you can add ellipses to file paths
-	#>==============================================================================
-	#|This will ellipse the module name
-	print pickle
-	#|This will ellipse the current path (only the final rel path will be there). 
-	os.getcwd()
-	
-	#>Ellipses #3: mod2doctest can (if you want) add ellipses to tracebacks
-	#>==============================================================================
-	print pickle.dumps(os)
-	
-	#>But, here's another way to exercise exceptions (that's a little cleaner IMHO).
-	#>==============================================================================
+	#>Setup test: note -- the weird newlines / whitespacing is to stress mod2doctest
+	#>------------------------------------------------------------------------------
+	dir_main = 'dirmain'
 	try:
-	    print pickle.dumps(os)
-	    print 'This is okay!'
-	except TypeError, e:    
-	    print 'Oh no it is not: %s' % e
+	    shutil.rmtree(dir_main)    
+	except OSError:
+	    pass
+	finally:
+	    print 'Setup complete'
+	    os.mkdir(dir_main)
 	
-	#> EOF
-	#>==============================================================================
-	print "That's all folks."
-	raise SystemExit # could also do exit() on Python 2.5 or higher
 	
-	#> Even thought there is more ... the exit prevented this from being called.
-	#>==============================================================================
-	print "Hello World?  Anybody there??"
+	#>Make threading class
+	#>------------------------------------------------------------------------------
+	class Foo(threading.Thread):
+	    
+	    has_exit = False
+	    
+	    main_file = os.path.join(dir_main, 'foo.txt')
+	    
+	    def run(self):
+	        
+	        while self.has_exit is False:
+	            time.sleep(0.100)
+	            try:
+	                data = open(self.main_file, 'r').read()
+	            except IOError:
+	                print 'Nothing there ...'
+	            else:
+	                if 'DONE' in data:                
+	                    print 'All done!'
+	                    self.has_exit = True
+	                elif 'PROCESSING' in data:
+	                    print 'Still working ... (note backslash is for doctest)'
+	                else:
+	                    print 'Cannot deal with %s' % data            
+	            finally:
+	                print 'I get printed every time.'
+	            
+	            time.sleep(2)
+	
+	print 'Made the class'
+	
+	#>Now, put it all together -- q
+	#>------------------------------------------------------------------------------
+	print 'Starting test ...'
+	
+	foo = Foo()
+	foo.start()   
+	
+	time.sleep(1)
+	open(Foo.main_file, 'w').write('PROCESSING')           
+	
+	time.sleep(4)
+	open(Foo.main_file, 'w').write('BAZ')           
+	            
+	time.sleep(4)
+	open(Foo.main_file, 'w').write('DONE')     
+	
+	foo.join()
+	
+	#>Finally, cleanup test
+	#>------------------------------------------------------------------------------
+	shutil.rmtree(dir_main)
+	print 'All cleaned up!'
 
+printout to stdout/stderr
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+It prints to stdout/stderr like this::
+            
+
+	Python 2.6.2 (r262:71605, Apr 14 2009, 22:40:02) [MSC v.1500 32 bit (Intel)] on win32
+	Type "help", "copyright", "credits" or "license" for more information.
+	
+	
+	Test Setup
+	------------------------------------------------------------------------------
+	
+	
+	Setup test: note -- the weird newlines / whitespacing is to stress mod2doctest
+	------------------------------------------------------------------------------
+	Setup complete
+	
+	
+	Make threading class
+	------------------------------------------------------------------------------
+	Made the class
+	
+	
+	Now, put it all together -- q
+	------------------------------------------------------------------------------
+	Starting test \...
+	Nothing there \...
+	I get printed every time.
+	Still working \... (note backslash is for doctest)
+	I get printed every time.
+	Still working \... (note backslash is for doctest)
+	I get printed every time.
+	Cannot deal with BAZ
+	I get printed every time.
+	Cannot deal with BAZ
+	I get printed every time.
+	All done!
+	I get printed every time.
+	
+	
+	Finally, cleanup test
+	------------------------------------------------------------------------------
+	All cleaned up!
 
 creates the following output '_doctest' module::
 
 	r"""
 	================================================================================
-	Auto generated by mod2doctest on Tue Sep 21 19:47:28 2010
+	Auto generated by mod2doctest on Sat Sep 25 15:53:10 2010
 	================================================================================
-	Notes on documentation ..
-	==============================================================================
-	
-	mod2doctest allows you to create comments that show up in the docstr 
-	so you can easily add sphinx rest comments like this:
-	 
-	..note ::
-	    `#|` prints only to docstr
-	    `#>` prints to docstr and stdout
-	
-	For example: 
-	
-	This is just in the docs
-	This prints to the docs and stdout. 
-	
-	
-	
-	
-	
+	Python 2.6.2 (r262:71605, Apr 14 2009, 22:40:02) [MSC v.1500 32 bit (Intel)] on win32
+	Type "help", "copyright", "credits" or "license" for more information.
 	
 	Test Setup
-	==============================================================================
-	
-	
-	>>> import pickle
+	------------------------------------------------------------------------------
+	 
 	>>> import os
+	>>> import shutil
+	>>> import time
+	>>> import threading
 	
-	
-	
-	Btw, you can use 'if __name__' blocks anywhere you want, it will not show
-	up in the final docstring.
-	
-	
-	
-	Make A List
-	==============================================================================
-	
-	
-	>>> alist = [1, -4, 50] + list(set([10, 10, 10]))
-	>>> alist.sort()
-	>>> print alist
-	[-4, 1, 10, 50]
-	
-	
-	
-	Pickle The List
-	==============================================================================
-	This will print the repr of the pickle string.  If this algorithm every
-	changes -- even if one character is different -- this test will 'break'. 
-	
-	
-	>>> print repr(pickle.dumps(alist))
-	'(lp0\nI-4\naI1\naI10\naI50\na.'
-	
-	
-	
-	Ellipses #1: mod2doctest can (if you want) add ellipses to memory IDs
-	==============================================================================
-	
-	
-	>>> class Foo(object):
-	...     pass
-	... 
-	>>> print Foo
-	<class '__main__.Foo'>
-	>>> print Foo()
-	<...Foo object at 0x...>
-	
-	
-	
-	Ellipses #2: Also, you can add ellipses to file paths
-	==============================================================================
-	This will ellipse the module name
-	
-	
-	>>> print pickle
-	<module 'pickle' from '...pickle.pyc'>
-	
-	
-	This will ellipse the current path (only the final rel path will be there). 
-	
-	
-	>>> os.getcwd()
-	'...tests'
-	
-	
-	
-	Ellipses #3: mod2doctest can (if you want) add ellipses to tracebacks
-	==============================================================================
-	
-	
-	>>> print pickle.dumps(os)
-	Traceback (most recent call last):
-	    ...
-	TypeError: can't pickle module objects
-	
-	
-	
-	But, here's another way to exercise exceptions (that's a little cleaner IMHO).
-	==============================================================================
-	
-	
+	Setup test: note -- the weird newlines / whitespacing is to stress mod2doctest
+	------------------------------------------------------------------------------
+	 
+	>>> dir_main = 'dirmain'
 	>>> try:
-	...     print pickle.dumps(os)
-	...     print 'This is okay!'
-	... except TypeError, e:
-	...     print 'Oh no it is not: %s' % e
+	...     shutil.rmtree(dir_main)
+	... except OSError:
+	...     pass
+	... finally:
+	...     print 'Setup complete'
+	...     os.mkdir(dir_main)
 	... 
-	Oh no it is not: can't pickle module objects
+	Setup complete
 	
+	Make threading class
+	------------------------------------------------------------------------------
+	 
+	>>> class Foo(threading.Thread):
+	...     
+	...     has_exit = False
+	...     
+	...     main_file = os.path.join(dir_main, 'foo.txt')
+	...     
+	...     def run(self):
+	...         
+	...         while self.has_exit is False:
+	...             
+	...             time.sleep(0.100)
+	...             
+	...             try:
+	...                 data = open(self.main_file, 'r').read()
+	...             except IOError:
+	...                 print 'Nothing there \...'
+	...             else:
+	...                 if 'DONE' in data:
+	...                     print 'All done!'
+	...                     self.has_exit = True
+	...                 elif 'PROCESSING' in data:
+	...                     print 'Still working \... (note backslash is for doctest)'
+	...                 else:
+	...                     print 'Cannot deal with %s' % data
+	...             finally:
+	...                 
+	...                 print 'I get printed every time.'
+	...             
+	...             time.sleep(1.900)
+	... 
+	>>> print 'Made the class'
+	Made the class
 	
-	EOF
-	==============================================================================
+	Now, put it all together -- q
+	------------------------------------------------------------------------------
+	 
+	>>> print 'Starting test \...'
+	Starting test \...
+	>>> 
+	>>> foo = Foo()
+	>>> foo.start()
+	>>> 
+	>>> time.sleep(1)
+	Nothing there \...
+	I get printed every time.
+	>>> open(Foo.main_file, 'w').write('PROCESSING')
+	>>> 
+	>>> time.sleep(4)
+	Still working \... (note backslash is for doctest)
+	I get printed every time.
+	Still working \... (note backslash is for doctest)
+	I get printed every time.
+	>>> open(Foo.main_file, 'w').write('BAZ')
+	>>> 
+	>>> time.sleep(4)
+	Cannot deal with BAZ
+	I get printed every time.
+	Cannot deal with BAZ
+	I get printed every time.
+	>>> open(Foo.main_file, 'w').write('DONE')
+	>>> 
+	>>> foo.join()
+	All done!
+	I get printed every time.
 	
+	Finally, cleanup test
+	------------------------------------------------------------------------------
+	 
+	>>> shutil.rmtree(dir_main)
+	>>> print 'All cleaned up!'
+	All cleaned up!
 	
-	>>> print "That's all folks."
-	That's all folks.
-	>>> raise SystemExit # could also do exit() on Python 2.5 or higher
 	"""
 	
 	if __name__ == '__main__':
@@ -218,6 +247,6 @@ creates the following output '_doctest' module::
 
 which looks like this when you use an ``automodule`` sphinx directive: 
 
-.. automodule:: tests.basicexample_doctest
+.. automodule:: tests.extendedexample_doctest
 
 

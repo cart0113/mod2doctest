@@ -13,12 +13,14 @@ output.  Then, you can use mod2doctest to take a snapshot of the output and
 convert it to a permanent test fixture.
 
 Also has many convenience to make this process easier like: 
-
-	* Providing `#>` and `#|` comments: `#>` prints to both your docstring 
-	  and stdout and `#|` print just to your docstring (which will show
-	  up as text in a sphinx generated webpage)
-    * adding ellipse markers for memory id / trace back 
-    * Cleaning up your docstring for sphinx inclusion 
+  
+  * Providing `#>` and `#|` comments: `#>` prints to both your docstring
+    and stdout and `#|` print just to your docstring (which will show
+    up as text in a sphinx generated webpage)
+  
+  * adding ellipse markers for memory id / trace back 
+  
+  * Cleaning up your docstring for sphinx inclusion 
     
 For full documentation please visit http://packages.python.org/mod2doctest/.
  

@@ -4,8 +4,7 @@ if __name__ == '__main__':
     # Anything inside a __name__ == '__main__' block is removed
     
     import mod2doctest
-    mod2doctest.convert('python', src=True, target='_doctest', 
-                        run_doctest=False)    
+    mod2doctest.convert('python', src=True, run_doctest=False)    
 
 
 
@@ -39,7 +38,9 @@ class Foo(threading.Thread):
     def run(self):
         
         while self.has_exit is False:
+            
             time.sleep(0.100)
+            
             try:
                 data = open(self.main_file, 'r').read()
             except IOError:
@@ -51,11 +52,11 @@ class Foo(threading.Thread):
                 elif 'PROCESSING' in data:
                     print 'Still working ... (note backslash is for doctest)'
                 else:
-                    print 'Cannot deal with %s' % data            
+                    print 'Cannot deal with %s' % data                    
             finally:
                 print 'I get printed every time.'
             
-            time.sleep(2)
+            time.sleep(1.900)
 
 print 'Made the class'
 

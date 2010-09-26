@@ -37,6 +37,7 @@ import subprocess
 import re
 import doctest
 import time
+import pdb 
 
 DEFAULT_DOCTEST_FLAGS = (doctest.ELLIPSIS |
                          doctest.REPORT_ONLY_FIRST_FAILURE |
@@ -44,7 +45,7 @@ DEFAULT_DOCTEST_FLAGS = (doctest.ELLIPSIS |
 
 def convert(python_cmd,
             src=True,
-            target=True,
+            target='_doctest',
             add_autogen=True,
             add_testmod=True,
             ellipse_memid=True,
@@ -55,10 +56,9 @@ def convert(python_cmd,
             fn_process_input=None,
             fn_process_docstr=None,
             fn_title_docstr=None,
-            do_exit=True,
             ):
     """
-    :summary: Runs a module in shell, grabs output and returns a docstring.
+    :summary: Runs a module in shell, grabs output and creates a docstring.
 
     :param python_cmd: The python command that starts the shell (e.g. python
                        or /bin/python2.4, etc).
@@ -70,21 +70,23 @@ def convert(python_cmd,
                 to the module to be run.
     :type src:  True, module or file path
 
-    :param target: Where you want the output docstring to be placed.  If:
+    :param target: Where you want the output docstring to be placed:
+       
                    * ``None``, the docstring is not saved anywhere (but it is
-                   returned by this function).
+                     returned by this function and convert will not exit).
                    * ``True`` is given, the src module is used (the
-                   docstring is prepended to the file).
+                     docstring is prepended to the file).
                    * A path (of type str) is provided, the docstr is saved to
-                   that file.
-                   * And finally, a simple convention: if the string '_doctest'
-                   is provided, the output is saved to a file with the same
-                   name as the input, but with '_doctest' inserted right
-                   before the '.py' of the file name.  For example, if the
-                   src filename is 'mytest.py' the output will be saved to
-                   a file called 'mytest_doctest.py'
-    :type target:  None, True, str file path, or str '_doctest'
+                     that file.
+                   * And finally, a simple convention: if a string is given
+                     that starts with '_' (e.g. '_doctest'), the output is saved 
+                     to a file with the same name as the input, but with that
+                     string inserted right before the '.py' of the file name.  
+                     For example, if the src filename is 'mytest.py' and the 
+                     target is '_doctest' the docstring output will be saved to a 
+                     file called 'mytest_doctest.py'
 
+    :type target:  None, True, str file path, or str starting with '_'
 
     :param add_autogen: If True adds boilerplate python version / timestamp
                         of current run to top of docstr.
@@ -131,12 +133,7 @@ def convert(python_cmd,
                             string that will be used for the title.
     :type fn_title_docstr:  callable
 
-    :param do_exit: If True, the program exists after :func:`convert` is called.
-                    Normally, this is what you want because your code has 
-                    already been executed once in the interpreter.  
-    :type do_exit:  True or False
-
-    :returns: A docstring of type str.
+    :returns: None or, if ``target=None`` a docstring of type str.
     """
 
     if src is True:
@@ -161,8 +158,9 @@ def convert(python_cmd,
     # needed later on (the raw input with just the docstring removed).
     input = _input_remove_docstring(input)
     
+    #pdb.set_trace()
     pinput = _input_fix_whitespace(input)
-    
+        
     pinput = _input_escape_shell_prompt(pinput)
     pinput = _input_remove_name_eq_main(pinput)
 
@@ -171,7 +169,7 @@ def convert(python_cmd,
     pinput = pinput.strip()
     pinput = pinput.replace('\r', '')
     pinput = pinput.replace('\t', '    ')
-
+    
     shell = subprocess.Popen(args=[python_cmd, "-i"],
                              shell=False,
                              stdin=subprocess.PIPE,
@@ -204,24 +202,21 @@ def convert(python_cmd,
     if add_autogen:
         doctitle = '%s\n' % _docstr_get_title()
     else:
-        doctitle = ''
+        doctitle = '\n'
         docstr = '\n'.join(docstr.split('\n')[2:]).lstrip()
 
-    docstr = '"""\n%s%s\n\n"""' % (doctitle, docstr.strip())
+    docstr = '"""%s%s\n\n"""' % (doctitle, docstr.strip())
     
     docstr = _docstr_cleanup_docstr(docstr)
 
     if target:
-
         target = _docstr_save(docstr, src, target, input, add_testmod)
-
         if run_doctest:
             _run_doctest(target, doctest_flags)
-
-    if do_exit:
-        raise SystemExit
+        raise SystemExit    
     else:
         return docstr
+
 
 _ADD_TESTMOD_STR = """
 if __name__ == '__main__':
@@ -265,7 +260,7 @@ def _input_fix_whitespace(input):
         
         ^^^^print 'foobar'
         
-    will not work if directly copied / pasted because there are no space after
+    will not work if directly copied / pasted because there are no spaces after
     the ``def fn():`` line.
     
     Also::
@@ -278,6 +273,12 @@ def _input_fix_whitespace(input):
     does not allow direct copy paste either (you need a newline betwen the fn
     calls). This will run fine within a module but **not** if pasted into the 
     interpreter. This function fixes these problem.
+    
+    The strategy is to collect all whitespace/comments and hold them in the
+    ``hold`` list.  Then, track the current indent level.  When a non 
+    whitespace/comment line is encountered, apply the stored whitespace 
+    with the correct level of indentation.  Also, add a blank line between
+    statements like those shown above. 
 
     .. note::
     
@@ -289,21 +290,28 @@ def _input_fix_whitespace(input):
     input = input.replace('\r', '')
     input = input.replace('\t', ' '*4)
     hold = []
-    current_indent = 0
+    last_indent = 0
     stackable_tokens = set(['else', 'elif', 'except', 'finally'])
     for line in input.split('\n'):
         left_stripped = line.lstrip()
-        if not left_stripped: # means empty line
-            hold.append(left_stripped)
-        elif left_stripped.startswith('#'): 
+        if not left_stripped or left_stripped.startswith('#'): 
+            # collect all blank lines or full comment lines
             hold.append(left_stripped)
         else:
+            new_indent = len(line) - len(left_stripped)    
             if left_stripped.split()[0].split(':')[0] not in stackable_tokens:
-                current_indent = len(line) - len(left_stripped)    
-            hold = ['%s%s' % (' '*current_indent, h,) for h in hold]
+                # Add whitespace if, for example, two functions are defined
+                # with no whitespace in between
+                if not hold and new_indent < last_indent:
+                    lines.append(' '*new_indent)
+                last_indent = new_indent
+
+            hold = ['%s%s' % (' '*last_indent, h,) for h in hold]
             lines.extend(hold)
             hold = []
+
             lines.append(line.rstrip())
+
     return '\n'.join(lines)
     
 _RE_NEM = re.compile(r"""^if\s+__name__\s*==\s*['"]+__main__['"]+\s*:""", 
@@ -314,7 +322,8 @@ def _input_remove_name_eq_main(input):
     for line in input.split('\n'):
         if _RE_NEM.match(line):
             in_nem = True
-        elif in_nem and line.strip() and line[0] not in '\ \r\t':
+            lines.append('') # add one blank line for every nem
+        elif in_nem and line.strip() and line[0] not in ' \t':
             in_nem = False
         if in_nem is False:
             lines.append(line)
@@ -333,13 +342,14 @@ def _communicate(pinput, shell):
 
     while True:
     
-        outputline = shell.stdout.readline().replace('\r', '')
-        outputline = outputline.replace('\n', '')
-        outputline = outputline.replace('\t', '    ')
+        outputline = shell.stdout.readline()
 
         if not outputline:
             break
         else:
+            outputline = outputline.replace('\r', '')
+            outputline = outputline[:-1]
+            outputline = outputline.replace('\t', '    ')
         
             for line in _match_input_to_output(pinputlines, outputline):
 
@@ -386,13 +396,11 @@ def _match_input_to_output(inputlines, outputline):
             yield outputline
             has_input = False
 
-
 _RE_SPLIT_TRACEBACK = re.compile(r"""
                                   (Traceback.*
                                   (?:\n[ |\t]+.*)*
                                   \n\w+.*)
                                   """, flags=re.MULTILINE | re.VERBOSE)
-
 
 _RE_OUTPUT_FIXUP = re.compile(r'^[ \t]*$', flags=re.MULTILINE)
 def _docstr_fix_blanklines(docstr):
@@ -412,7 +420,7 @@ def _docstr_save(docstr, src, target, input, add_testmod):
     if target is True:
         target = src
     elif isinstance(target, str):
-        if target == '_doctest':
+        if target.startswith('_'):
             target = '%s%s.py' % (src.replace('.py', ''), target)
         # Then, if target a string (not True) it is different than the src
         # Therefore, blank out the input so we just get a docstring.

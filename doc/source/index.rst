@@ -7,30 +7,52 @@
 mod2doctest
 ***********
 
-Important Updates
-=================
+What's New
+==========
 
-  *  9/23/2010 -- Version 0.2.0 out.  Drastically changes how |mod2doctest| operates and 
-     fixes many bugs (mainly due to whitespace errors).  Much better, more
-     stable release. 
+*  9/23/2010 -- Version 0.2.0 out.  Drastically changes how |mod2doctest| 
+   operates and fixes many bugs (mainly due to whitespace errors).  Overall, 
+   a much better, more stable release. 
 
 What is mod2doctest?
 ====================
 
-With |mod2doctest| you can set up a test the "quick and dirty" way -- just by
-making a module that tests your code, running it, and then inspecting the 
-output.  Then, you can use |mod2doctest| to take a snapshot of the output and 
-convert it to a permanent test fixture -- a :mod:`doctest` testable docstring.  
-This docstring is now something that you can add to a test suite or can be 
-picked up by module like :mod:`nose`.  In a nut shell, |mod2doctest| saves you 
-from copying and pasting output into "doctest-able" docstrings. 
+|mod2doctest| takes a runnable python script as input and creates a nicely 
+formatted triple quoted docstring.  This docstring can then be used as: 
 
-But it also makes it easy to format the output docstring.  By using special
-``#>`` and ``#|`` comments, it easy to put sphinx rest style documentation 
-right in your python module.  The goal is to turn your "quick and dirty get
-up and running script" into 1. a permanent doctest test fixture and 2. sphinx
-compatiable documentation of your program. 
+*  A test fixture since it's runnable within doctest
+    
+*  Source code documentation as it can be handed to sphinx with a 
+   ``.. automodule`` command (see examples below).
 
+It's similiar in concept to copying and pasting the script/module contents
+into the interactive interpreter.  However, among other features, |mod2doctest|:
+
+*  Provides several formatting tools.  In particular, ``#>`` and ``#|`` 
+   are special |mod2doctest| comments that allow you to control the output
+   format of the docstr (and what gets printed to stdout).  In general, 
+   the output docstring from |mod2doctest| is much more nicely formatted
+   than if you copy/paste directly. 
+   
+*  Fixes problems with whitespace that don't allow you to directly copy
+   a module source into the interpreter (modules can have blanklines 
+   within a suite; the interpreter does not allow this).    
+   
+It's also similar to writing docstrings directly.  However, among other things, 
+by using |mod2doctest| you: 
+
+*  Take advantage of writing python code in your normal IDE / editor (as 
+   opposed to writing within the triple quoted string) so things like
+   code completion, etc will still work. 
+   
+*  Don't need to worry about creating program output -- |mod2doctest|
+   adds this for you. 
+
+The goal of |doctest| itself is to greatly reduce the burden of writing test 
+fixtures and documentation.  |mod2doctest| attempts to build on these goals. 
+By following a few conventions, you can create permanent test fixtures and 
+nicely formatted documentation in as much time as you'd spend creating those 
+quick throw away test scripts you need to develop your code against. 
 
 Quick Example
 ================================================================================
@@ -112,8 +134,8 @@ Which, when included in sphinx documentation looks like this:
 .. automodule:: tests.intro_doctest
 
 
-Installation for Python 2.4 through 2.6
-=======================================
+Installation for Python 2.x
+===========================
 
 Try::
 
@@ -129,9 +151,61 @@ There you can grab the windows installer, egg, or source directly.
 
 Also, go to http://github.com/cart0113/mod2doctest to grab the latest repo.
 
+API
+===
+
+.. automodule:: mod2doctest
+.. autofunction:: mod2doctest.convert
+
+
+Examples
+========
+
+One great thing about |doctest| is that your tests can easily be converted
+to webpages using :mod:`sphinx`.  Even for large test programs the linear 
+webpage output is a great tool to understand the test setup and overall
+test structure. 
+
+By using the special ``#>`` and ``#|`` special |mod2doctest| comments, it 
+is easy to create documentation at the same time as you are constructing your 
+test.  
+
+The following tests below were generated using these techniques. 
+
+.. note::
+
+   In this case, to best understand what's going on, look in mod2doctest.tests 
+   package.  And, if you want, go to http://github.com/cart0113/mod2doctest, 
+   clone the repo, and check out how those modules are used in the Sphinx 
+   documentation. 
+
+.. toctree::
+   :maxdepth: 1
+	
+   basicexample
+   extendedexample
+
+How Does |mod2doctest| Work?
+============================
+
+	*  Basically, |mod2doctest| takes your input, fixes any whitespace problems, 
+	   and then pipes it to an interpreter using the :mod:`subprocess` module.  
+	   
+	*  Then, the output is collected and some processing is done to line up the 
+	   original module code with the output from subprocess (basically lining 
+	   up the '>>>' and '...' which is tricker than it sounds).  
+	   
+	*  Then, a bunch of post processing is done to process the special 
+	   |mod2doctest| comments and nicely format the final docstring. 
+
+This is why the output from mod2doctest is more formatted and readable than 
+if you were to just paste a module into the intrepreter yourself. 
+
+Some Notes
+==========
 
 A Word Of Warning
-=================
+-----------------
 
 Here's the warning: **make sure to carefully inspect the output docstring or
 final sphinx webpage generated by mod2doctest**. 
@@ -146,8 +220,16 @@ To be a useful test fixture that can be used for, say regression testing you
 need to make sure the 'snapshot' contains the intended results. 
 
 
-Just One More Thing: Running Your Test. 
-=======================================
+mod2doctest normally exits at the end of :func:`convert`
+--------------------------------------------------------
+
+If a target is given, :func:`convert` calls exit.  This is to stop your 
+code being run again since it's already been piped to an interactive 
+interpreter once (and that output printed to stdout/stderr for you).
+
+
+mod2doctest can run your script up to two times
+-----------------------------------------------
 
 Just a quick note -- :mod:`mod2doctest` can run your script up to two times
 if the ``run_doctest`` parameter is set to ``True``. 
@@ -181,56 +263,6 @@ will run once -- just when the module code is piped to the shell.
    your test is slow to run.   If you run mod2doctest like the first example it 
    takes two times longer to run than you might have been expecting.  
 
-
-API
-===
-
-.. automodule:: mod2doctest
-.. autofunction:: mod2doctest.convert
-
-
-Example
-=====
-
-One great thing about |doctest| is that your tests can easily be converted
-to webpages using :mod:`sphinx`.  Even for large test programs the linear 
-webpage output is a really great tool to understand the test setup and overall
-test structure (which is a great reason to use |doctest| over :mod:`unittest`
-even for large programs). 
-
-By using the comment stripping feature and the :class:`m2d_print` utility
-functions, |mod2doctest| can convert those `quick and dirty` scripts you threw 
-together to test your module into usable documentation.  
-
-The following tests below were generated using these techniques. 
-
-.. note::
-
-   In this case, to best understand what's going on, look in mod2doctest.tests 
-   package.  And, if you want, go to 
-   http://github.com/cart0113/mod2doctest, clone the repo, and
-   check out how those modules and how they are used in the Sphinx 
-   documentation. 
-
-.. toctree::
-   :maxdepth: 1
-	
-   basicexample
-   extendedexample
-
-
-How Does |mod2doctest| Work?
-============================
-
-Basically, |mod2doctest| takes your input, pipes it to an interpreter using the
-:mod:`subprocess` module.  Then, a bunch of text processing is done to line
-up the original module text with the output from subprocess (this includes
-lining up the '>>> ' and '...' which is tricker than it sounds).  
-
-This is why the output from mod2doctest is much more nicely formatted than if 
-you were to just paste a module into the intrepreter yourself (also, that often 
-does not work due to allowed whitespace differences between modules and the 
-interactive interpreter). 
 
 Indices and Tables
 ==================
