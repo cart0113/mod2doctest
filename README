@@ -7,12 +7,7 @@ compatible docstring.
 It's kind of like taking a python script, pasting it into an interactive
 interpreter and then copying the output back into a docstring.  
 
-With mod2doctest you can set up a test the "quick and dirty" way -- just by
-making a module that tests your code, running it, and then inspecting the 
-output.  Then, you can use mod2doctest to take a snapshot of the output and 
-convert it to a permanent test fixture.
-
-Also has many convenience to make this process easier like: 
+However, mod2doctest has many convenience to make this process easier like: 
   
   * Providing `#>` and `#|` comments: `#>` prints to both your docstring
     and stdout and `#|` print just to your docstring (which will show
@@ -20,9 +15,12 @@ Also has many convenience to make this process easier like:
   
   * adding ellipse markers for memory id / trace back 
   
-  * Cleaning up your docstring for sphinx inclusion 
+  * Cleaning up / formatting your docstring for sphinx inclusion 
+  
+  * and a couple of other things, too.
     
-For full documentation please visit http://packages.python.org/mod2doctest/.
+For full documentation and several examples please visit 
+http://packages.python.org/mod2doctest/.
  
  
  
