@@ -58,6 +58,7 @@ def convert(python_cmd,
             fn_process_input=None,
             fn_process_docstr=None,
             fn_title_docstr=None,
+            clean_blanklines=True,
             ):
     """
     :summary: Runs a module in shell, grabs output and creates a docstring.
@@ -135,6 +136,12 @@ def convert(python_cmd,
                             string that will be used for the title.
     :type fn_title_docstr:  callable
 
+    :param clean_blanklines: If True, then two or more consecutive blank lines
+                             in the docstr are converted to a single blankline
+                             in the output docstr (e.g. '>>>\n>>>\n>>>\n' goes
+                             to '>>>\n').
+    :type clean_blanklines:  True or False
+
     :returns: None or, if ``target=None`` a docstring of type str.
     """
 
@@ -159,11 +166,11 @@ def convert(python_cmd,
     # First, remove the docstring.  Keep the input variable around, it's
     # needed later on (the raw input with just the docstring removed).
     input = _input_remove_docstring(input)
-
+    #pdb.set_trace()
     pinput = _input_fix_whitespace(input)
-
     pinput = _input_escape_shell_prompt(pinput)
     pinput = _input_remove_name_eq_main(pinput)
+    pinput = _input_split_on_exit(pinput)
 
     # Remove extra whitespace at end.
     # You need to do this AFTER the removing of ``if __name__ == '__main__'``
@@ -179,13 +186,14 @@ def convert(python_cmd,
                              stderr=subprocess.STDOUT,
                              )
 
-    docstr = _communicate(pinput, popen)
+    def kill_popen():
+        try:
+            popen.kill()
+        except EnvironmentError:
+            pass
+    atexit.register(kill_popen)
 
-    if ellipse_memid:
-        docstr = _docstr_ellipse_mem_id(docstr)
-
-    if ellipse_path:
-        docstr = _docstr_ellipse_paths(docstr)
+    docstr = _communicate(pinput, popen, ellipse_memid, ellipse_path)
 
     if ellipse_traceback:
         docstr = _docstr_ellipse_traceback(docstr)
@@ -212,7 +220,8 @@ def convert(python_cmd,
 
     docstr = "'''%s%s\n\n'''" % (doctitle, docstr.strip())
 
-    docstr = _docstr_cleanup_docstr(docstr)
+    if clean_blanklines:
+        docstr = _docstr_clean_blanklines(docstr)
 
     if target:
         target = _docstr_save(docstr, src, target, input, add_testmod)
@@ -333,7 +342,11 @@ def _input_remove_name_eq_main(input):
             lines.append(line)
     return '\n'.join(lines)
 
-def _communicate(pinput, popen):
+_RE_EXIT = re.compile(r"^(exit\(\)|raise SystemExit)", re.MULTILINE)
+def _input_split_on_exit(input):
+    return _RE_EXIT.split(input, 1)[0]
+
+def _communicate(pinput, popen, ellipse_memid, ellipse_path):
 
     pinput = '%s\n\nraise SystemExit\n\n' % pinput
 
@@ -349,6 +362,13 @@ def _communicate(pinput, popen):
     for outputline in stdout.split('\n'):
         outputline = outputline.replace('\r', '')
         outputline = outputline.replace('\t', '    ')
+
+        if ellipse_memid:
+            outputline = _docstr_ellipse_mem_id(outputline)
+
+        if ellipse_path:
+            outputline = _docstr_ellipse_paths(outputline)
+
 
         for line in _match_input_to_output(pinputlines, outputline):
 
@@ -443,23 +463,24 @@ def _docstr_save(docstr, src, target, input, add_testmod):
     return target
 
 _RE_ELLIPSE_MEM_ID = re.compile(r'<(?:(?:\w+\.)*)(.*? at 0x)\w+>')
-def _docstr_ellipse_mem_id(docstr):
-    return _RE_ELLIPSE_MEM_ID.sub(r'<...\1...>', docstr)
+def _docstr_ellipse_mem_id(line):
+    return _RE_ELLIPSE_MEM_ID.sub(r'<...\1...>', line)
+
+_RE_LOCAL_PATH = re.compile(r"""
+                             (?:\S*(?:[/\\][^\s/\\]+)+)
+a                            ([/\\][^\s/\\]+)
+                             """, flags=re.VERBOSE)
+def _docstr_ellipse_paths(line):
+    return _RE_LOCAL_PATH.sub(r'...\1', line)
 
 _RE_ELLIPSE_TRACEBACK = re.compile(r"""
-                                    (Traceback.*)
+                                    (\nTraceback \(most recent call last\):)
                                     (?:(?:\n[ |\t]+.*)*)
                                     (\n\w+.*)
                                     """, flags=re.MULTILINE | re.VERBOSE)
 def _docstr_ellipse_traceback(docstr):
     return _RE_ELLIPSE_TRACEBACK.sub(r'\1\n    ...\2', docstr)
 
-_RE_LOCAL_PATH = re.compile(r"""
-                             (?:\S*(?:[/\\][^\s/\\]+)+)
-a                            ([/\\][^\s/\\]+)
-                             """, flags=re.VERBOSE)
-def _docstr_ellipse_paths(output):
-    return _RE_LOCAL_PATH.sub(r'...\1', output)
 
 _RE_PRINT_MARKER = re.compile(r'(?:>>>|...)\s#[>|]')
 def _process_docstr_markers(docstr):
@@ -489,7 +510,7 @@ def _process_docstr_markers(docstr):
 
     return '\n'.join(lines)
 
-def _docstr_cleanup_docstr(docstr):
+def _docstr_clean_blanklines(docstr):
 
     lines = []
 
