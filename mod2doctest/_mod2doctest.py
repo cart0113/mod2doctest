@@ -1,4 +1,5 @@
-"""Converts a Python module to a |doctest| testable docstring.
+"""\
+Converts a Python module to a |doctest| testable docstring.
 
 The basic idea behind |mod2doctest| is provide a *snapshot* of the current
 run of a module.  That is, you just point |mod2doctest| to a module and it
@@ -40,26 +41,26 @@ import time
 import pdb
 import atexit
 
-
 DEFAULT_DOCTEST_FLAGS = (doctest.ELLIPSIS |
                          doctest.REPORT_ONLY_FIRST_FAILURE |
                          doctest.NORMALIZE_WHITESPACE)
 
-def convert(python_cmd,
-            src=True,
-            target='_doctest',
-            add_autogen=True,
-            add_testmod=True,
-            ellipse_memid=True,
-            ellipse_traceback=True,
-            ellipse_path=True,
-            run_doctest=False,
-            doctest_flags=DEFAULT_DOCTEST_FLAGS,
-            fn_process_input=None,
-            fn_process_docstr=None,
-            fn_title_docstr=None,
-            clean_blanklines=True,
-            ):
+def convert(
+    python_cmd,
+    src=True,
+    target='_doctest',
+    add_autogen=True,
+    add_testmod=True,
+    ellipse_memid=True,
+    ellipse_traceback=True,
+    ellipse_path=True,
+    run_doctest=False,
+    doctest_flags=DEFAULT_DOCTEST_FLAGS,
+    fn_process_input=None,
+    fn_process_docstr=None,
+    fn_title_docstr=None,
+    clean_blanklines=True,
+    ):
     """
     :summary: Runs a module in shell, grabs output and creates a docstring.
 
@@ -178,13 +179,14 @@ def convert(python_cmd,
     pinput = pinput.replace('\r', '')
     pinput = pinput.replace('\t', '    ')
 
-    popen = subprocess.Popen(args="%s -i" % python_cmd,
-                             bufsize=-1,
-                             shell=True,
-                             stdin=subprocess.PIPE,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT,
-                             )
+    popen = subprocess.Popen(
+        args="%s -i" % python_cmd,
+        bufsize=-1,
+        shell=True,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        )
 
     def kill_popen():
         try:
@@ -194,12 +196,17 @@ def convert(python_cmd,
     atexit.register(kill_popen)
 
     docstr = _communicate(pinput, popen, ellipse_memid, ellipse_path)
-
+        
+    docstr = docstr.rsplit('\n>>>', 2)[0]
+    
+    docstr = [l if l.strip() else '<BLANKLINE>' for l in docstr.split('\n')]
+    docstr = '\n'.join(docstr)
+        
     if ellipse_traceback:
         docstr = _docstr_ellipse_traceback(docstr)
 
     docstr = _process_docstr_markers(docstr)
-
+    
     if fn_process_docstr:
         docstr = fn_process_docstr(docstr)
 
@@ -213,7 +220,7 @@ def convert(python_cmd,
         doctitle = '%s\n' % _docstr_get_title()
     else:
         doctitle = '\n'
-        docstr = '\n'.join(docstr.split('\n')[3:-2]).lstrip()
+        docstr = '\n'.join(docstr.split('\n')[3:]).lstrip()
 
     # Remember to remove any triple quotes """
     docstr = docstr.replace("'''", '"""')
@@ -263,7 +270,18 @@ def _input_escape_shell_prompt(input):
     input = input.replace('>>>', '\>>>')
     return input.replace('...', '\...')
 
+_RE_QUOTE = re.compile(r"((?:''')|(?:\"\"\"))((?:.|\n)*?)(\1)")
 def _input_fix_whitespace(input):
+    # 0, 1, 2, 3
+    # 4, 5, 6, 7
+    # 8, 9, 10, 11
+    input = _RE_QUOTE.split(input)
+    for i, block in enumerate(input):
+        if i % 4 == 0:
+            input[i] = _input_fix_whitespace_block(block)
+    return ''.join(input)
+
+def _input_fix_whitespace_block(input):
     """Fixes problems with spaces in the input that cause interpreter errors.
 
     There are two major problems and will use ^ to denote spaces
@@ -327,8 +345,8 @@ def _input_fix_whitespace(input):
 
     return '\n'.join(lines)
 
-_RE_NEM = re.compile(r"""^if\s+__name__\s*==\s*['"]+__main__['"]+\s*:""",
-                     flags=re.IGNORECASE)
+_RE_NEM = re.compile(
+    r"""^if\s+__name__\s*==\s*['"]+__main__['"]+\s*:""", flags=re.IGNORECASE)
 def _input_remove_name_eq_main(input):
     lines = []
     in_nem = False
@@ -345,6 +363,7 @@ def _input_remove_name_eq_main(input):
 _RE_EXIT = re.compile(r"^(exit\(\)|raise SystemExit)", re.MULTILINE)
 def _input_split_on_exit(input):
     return _RE_EXIT.split(input, 1)[0]
+
 
 def _communicate(pinput, popen, ellipse_memid, ellipse_path):
 
@@ -368,7 +387,6 @@ def _communicate(pinput, popen, ellipse_memid, ellipse_path):
 
         if ellipse_path:
             outputline = _docstr_ellipse_paths(outputline)
-
 
         for line in _match_input_to_output(pinputlines, outputline):
 
@@ -400,6 +418,7 @@ def _communicate(pinput, popen, ellipse_memid, ellipse_path):
 
     return '\n'.join(docstrlines)
 
+
 def _match_input_to_output(inputlines, outputline):
 
     has_input = True
@@ -416,19 +435,11 @@ def _match_input_to_output(inputlines, outputline):
             yield outputline
             has_input = False
 
-_RE_SPLIT_TRACEBACK = re.compile(r"""
-                                  (Traceback.*
-                                  (?:\n[ |\t]+.*)*
-                                  \n\w+.*)
-                                  """, flags=re.MULTILINE | re.VERBOSE)
-
-_RE_OUTPUT_FIXUP = re.compile(r'^[ \t]*$', flags=re.MULTILINE)
-def _docstr_fix_blanklines(docstr):
-    return _RE_OUTPUT_FIXUP.sub(r'<BLANKLINE>', docstr)
 
 def _docstr_get_title():
     return "\n%s\nAuto generated by mod2doctest on %s\n%s" % \
            ('='*80, time.ctime(), '='*80)
+
 
 def _docstr_save(docstr, src, target, input, add_testmod):
 
@@ -466,12 +477,15 @@ _RE_ELLIPSE_MEM_ID = re.compile(r'<(?:(?:\w+\.)*)(.*? at 0x)\w+>')
 def _docstr_ellipse_mem_id(line):
     return _RE_ELLIPSE_MEM_ID.sub(r'<...\1...>', line)
 
-_RE_LOCAL_PATH = re.compile(r"""
-                             (?:\S*(?:[/\\][^\s/\\]+)+)
-a                            ([/\\][^\s/\\]+)
-                             """, flags=re.VERBOSE)
+_RE_PATH_CHARS = 'a-zA-Z0-9_[]{}:'
+_RE_UNIX_LOCAL_PATH = re.compile(
+    r"(?:(?:[/][{0}/]+)+)([/][{0}/]+)".format(_RE_PATH_CHARS))
+_RE_WINDOWS_LOCAL_PATH = re.compile(
+    r"(?:\w:(?:[\\][{0}\\]+)+)([\\][{0}\\]+)".format(_RE_PATH_CHARS))
 def _docstr_ellipse_paths(line):
-    return _RE_LOCAL_PATH.sub(r'...\1', line)
+    line = _RE_UNIX_LOCAL_PATH.sub(r'...\1', line)
+    line = _RE_WINDOWS_LOCAL_PATH.sub(r'...\1', line)
+    return line
 
 _RE_ELLIPSE_TRACEBACK = re.compile(r"""
                                     (\nTraceback \(most recent call last\):)
@@ -493,10 +507,11 @@ def _process_docstr_markers(docstr):
             if in_print is False:
                 lines.append('')
             in_print = True
-            if len(line) >= 8 and line[6] == ' ' and line[7] != '':
-                line = line[7:]
-            else:
-                line = line[6:]
+            #
+            #if len(line) >= 8 and line[6] == ' ' and line[7] != '':
+            #    line = line[6:]
+            #else:
+            line = line[6:]
         elif line.startswith('>>> ') or line.startswith('... '):
             if in_print is True and line.strip() == '...':
                 line = ''
@@ -513,18 +528,21 @@ def _process_docstr_markers(docstr):
 def _docstr_clean_blanklines(docstr):
 
     lines = []
-
-    extra_marker = None
+    lastline = None
+    enters = []
     for line in docstr.split('\n'):
-        test = line.strip()
-        if test == '>>>' or test == '...':
-            extra_marker = line
-        else:
-            if extra_marker and test:
-                lines.append(extra_marker)
-            extra_marker = None
-            lines.append(line)
-
+        if line == '<BLANKLINE>' and lastline == '<BLANKLINE>':
+            continue
+        lastline = line
+        if line.strip() == '>>>':
+            enters.append(line)
+            continue
+        elif line.startswith('>>>') and enters:
+            lines.extend(enters)
+            del enters[:]
+        elif enters:
+            del enters[:]
+        lines.append(line)
     return '\n'.join(lines)
 
 def _run_doctest(target, doctest_flags):

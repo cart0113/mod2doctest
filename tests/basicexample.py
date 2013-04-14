@@ -4,7 +4,7 @@ if __name__ == '__main__':
     # Anything inside a __name__ == '__main__' block is removed
     
     import mod2doctest
-    mod2doctest.convert('python', src=True, run_doctest=False)    
+    mod2doctest.convert('python', src=True, run_doctest=False)
 
 #>Notes on documentation ..
 #>==============================================================================
