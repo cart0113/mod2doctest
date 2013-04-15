@@ -5,13 +5,14 @@ if __name__ == '__main__':
     import sys
     sys.path.insert(0, '/home/ajcarter/workspace/GIT_MOD2DOCTEST')
     import mod2docstring
-    mod2docstring.convert(difftool='bcompare')
+    mod2docstring.convert(difftool='meld')
+    exit()
 
 
 # Welcome to mod2doctest
 # ======================
 #
-# You can easily mix ReST syntax with you expected python.
+# You can easily mix ReST syntax with your expected python.
 #
 # .. warning::
 #    make sure to examine your resulting docstr to make sure output is as
@@ -20,11 +21,18 @@ if __name__ == '__main__':
 # The basics:
 print 'Hello World!'
 
+
+
+
+
+
+
+
 # Show that sets, sorting do really work
 # ======================================
 #
 # A little more:
-somelist = [100, 2, -20, 3400, 0, 0, 0, 10, 10, 10, 88, -3, 100, 2, -99, -1]
+somelist = [100, 2, -20, 3400, 100, 0, 0, 10, 10, 10, 88, -3, 100, 2, -99, -1]
 sorted(set(somelist))
 
 
@@ -35,13 +43,22 @@ sorted(set(somelist))
 somelist = [100, 2, -20, 340, 0, 0, 0, 0, 0, 10, 10, 88, -3, 100, 2, -99, -1]
 sorted(set(somelist))
 
+#
+# Double 'pound' comments show up as regular python comments, not as inline
+# ReST.
+
 ##
-## Double 'pound' commments do not show up at all in the final docstr
-## for x in range(10):
-##     yield x
+## If everything goes right, this will print the numbers 0 thru 3
 ##
-##
-# But single '#' comments do show up.
+for x in range(3):
+    print x
+
+# Triple comments do not show up at all.
+###
+### for i in xrange(3):
+###     yield 'hi'
+for i in xrange(3):
+    print 'hi', i
 
 # Stack Traces
 # ============

@@ -3,7 +3,7 @@
 Welcome to mod2doctest
 ======================
 
-You can easily mix ReST syntax with you expected python.
+You can easily mix ReST syntax with your expected python.
 
 .. warning::
    make sure to examine your resulting docstr to make sure output is as
@@ -14,14 +14,24 @@ The basics:
 >>> print 'Hello World!'
 Hello World!
 
+
+
+
+
+
+
+
+
 Show that sets, sorting do really work
 ======================================
 
 A little more:
  
->>> somelist = [100, 2, -20, 3400, 0, 0, 0, 10, 10, 10, 88, -3, 100, 2, -99, -1]
+>>> somelist = [100, 2, -20, 3400, 100, 0, 0, 10, 10, 10, 88, -3, 100, 2, -99, -1]
 >>> sorted(set(somelist))
 [-99, -20, -3, -1, 0, 2, 10, 88, 100, 3400]
+
+
 
 Notes on sphinx formatting
 ==========================
@@ -32,7 +42,29 @@ A little more:
 >>> sorted(set(somelist))
 [-99, -20, -3, -1, 0, 2, 10, 88, 100, 340]
 
-But single '#' comments do show up.
+
+
+Double 'pound' comments show up as regular python comments, not as inline
+ReST.
+
+>>> #
+... # If everything goes right, this will print the numbers 0 thru 3
+... #
+... for x in range(3):
+...     print x
+... 
+0
+1
+2
+
+Triple comments do not show up at all.
+ 
+>>> for i in xrange(3):
+...     print 'hi', i
+... 
+hi 0
+hi 1
+hi 2
 
 Stack Traces
 ============
@@ -42,6 +74,8 @@ Stack Traces
 Traceback (most recent call last):
     ...
 KeyError
+
+
 
 Define classes, functions inline -- useful for setup, teardown, other things.
 =============================================================================
@@ -77,12 +111,14 @@ Traceback (most recent call last):
     ...
 OSError: [Errno 2] No such file or directory: 'foobar'
 
+
 Note, stack traces do not stop the program -- you can have many, many
  
 >>> print teardown()
 Traceback (most recent call last):
     ...
 OSError: [Errno 2] No such file or directory: 'foobar'
+
 
 Another great way to handle :class:`Exceptions`:
  

@@ -115,6 +115,7 @@ def convert(
                                  >>> print 'hi'
                                  'hi'
                                  
+                                 
                                  Now, another example. 
                              
     :type clean_blanklines:  ``True`` or ``False`` (default ``True``).
@@ -145,9 +146,6 @@ class Convertor(object):
         ellipse_tracebacks=True, clean_blanklines=True):
         if src is None:
             self._src = src = _sys.argv[0]
-            self._exit_on_convert = True
-        else:
-            self._exit_on_convert = False
 
         self._src = src
         self._difftool = difftool
@@ -169,31 +167,44 @@ class Convertor(object):
         if not dst_path:
             return docstring
 
-        difference = self.detect_output_difference(dst_path, docstring)
+        lock_path = _os.path.join(
+            _os.path.dirname(dst_path),
+            '.{}.mod2docstring.lock'.format(_os.path.basename(dst_path)))
 
-        if difference is False:
-            _sys.stdout.write(
-                '\nDocstring not written, no diff found from '
-                '{}\n'.format(dst_path))
-            if self._exit_on_convert:
-                raise SystemExit
-            return
+        if _os.path.exists(lock_path):
+            raise OSError(
+                "Cannot create\n\n    {}\n\nbecause lock path:\n\n    {}"
+                "\n\nexists.  Another instance of mod2docstring must be "
+                "running.".format(dst_path, lock_path))
+            
+        try:
+            with open(lock_path, 'w') as fileobj:
+                fileobj.write('lock')
 
-        if difference is True and self._difftool:
-            self.launch_difftool(dst_path, docstring)
+            difference = self.detect_output_difference(dst_path, docstring)
 
-        if self._confirm:
-            overwrite = self.confirm_write_docstring(dst_path)
-        else:
-            overwrite = True
+            if difference is False:
+                _sys.stdout.write(
+                    '\nDocstring not written, no diff found from '
+                    '{}\n'.format(dst_path))
+                return docstring
 
-        if overwrite:
-            self.save_docstring(dst_path, docstring)
+            if difference is True and self._difftool:
+                self.launch_difftool(dst_path, docstring)
 
-        if self._exit_on_convert:
-            raise SystemError
+            if self._confirm:
+                overwrite = self.confirm_write_docstring(dst_path)
+            else:
+                overwrite = True
 
-        return docstring
+            if overwrite:
+                self.save_docstring(dst_path, docstring)
+
+            return docstring
+
+        finally:
+
+            _os.unlink(lock_path)
 
     def convert_src_to_docstring_text(self):
         src_text = self.get_src_text(self._src)
@@ -464,9 +475,13 @@ class Convertor(object):
 
         for line in raw_docstring.split('\n'):
             line_no_space = line.strip().replace(' ', '')
-            if line.startswith(('>>> ##', '... ##',)):
+            if line.startswith(('>>> ###', '... ###',)):
                 continue
-            elif line.startswith(('>>> # ', '... # ',)):
+            elif line.startswith(('>>> ##', '... ##',)):
+                if in_print is True:
+                    in_print = False
+                line = '%s%s' % (line[:4], line[5:],)
+            elif line.startswith(('>>> #', '... #',)):
                 if in_print is False:
                     processed_lines.append('')
                 in_print = True
@@ -513,6 +528,7 @@ class Convertor(object):
                 lines.extend(enters)
                 del enters[:]
             elif enters:
+                lines.extend([''] * len(enters))
                 del enters[:]
             lines.append(line)
         return '\n'.join(lines)
@@ -547,13 +563,17 @@ class Convertor(object):
                 fileobj.write(docstring)
             _subprocess.call([difftool, dst_path, temp_path])
         finally:
-            _os.unlink(temp_path)
+            try:
+                _os.unlink(temp_path)
+            except EnvironmentError:
+                pass
 
     def confirm_write_docstring(self, dst_path):
         _sys.stdout.write('\n')
         while True:
+            dst_path = _os.path.basename(dst_path)
             yn = raw_input(
-                "\nOverwrite new docstring to {} [yN]: ".format(dst_path))
+                "\nOverwrite new docstring '{}' [yN]: ".format(dst_path))
             yn = yn.strip().lower()
             if yn == 'y':
                 return True
